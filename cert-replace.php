@@ -29,8 +29,8 @@ if ($argc !== 2) {
 }
 
 // Lookup existing TLS certificate or csr and key.
-$cert =& lookup_cert_by_name($argv[1]);
-if (empty($cert['prv'])) {
+$cert = lookup_cert_by_name($argv[1]);
+if (empty($cert['item']['prv'])) {
     echo "No such certificate configured: " . $argv[1] . "\n";
     exit(1);
 }
@@ -43,7 +43,7 @@ if (strpos($pemcert, "-----BEGIN CERTIFICATE-----") === FALSE || strrpos($pemcer
 }
 
 // Verify TLS key.
-$pemkey = base64_decode($cert['prv']);
+$pemkey = base64_decode($cert['item']['prv']);
 if (strpos($pemkey, "-----BEGIN PRIVATE KEY-----") === FALSE || strrpos($pemkey, "-----END PRIVATE KEY-----") === FALSE) {
     echo "The private key does not appear to be valid.\n";
     exit(1);
@@ -56,8 +56,8 @@ if (!openssl_x509_check_private_key($pemcert, $pemkey)) {
 }
 
 // Ensure that the new certificate is actually fresh.
-if (!empty($cert['crt'])) {
-    $pemlast = base64_decode($cert['crt']);
+if (!empty($cert['item']['crt'])) {
+    $pemlast = base64_decode($cert['item']['crt']);
 
     if (strpos($pemlast, "-----BEGIN CERTIFICATE-----") === FALSE || strrpos($pemlast, "-----END CERTIFICATE-----") === FALSE) {
         echo "The existing certificate does not appear to be valid.\n";
@@ -71,11 +71,12 @@ if (!empty($cert['crt'])) {
 }
 
 // Install new certificate and write config.
-csr_complete($cert, $pemcert);
-write_config(sprintf(gettext("Replaced HTTPS certificate (%s)"), $cert['refid']));
+csr_complete($cert['item'], $pemcert);
+config_set_path("cert/{$cert['idx']}", $cert['item']);
+write_config(sprintf(gettext("Replaced HTTPS certificate (%s)"), $cert['item']['refid']));
 
 // Reload webui if appropriate.
-if (is_webgui_cert($cert['refid'])) {
+if (is_webgui_cert($cert['item']['refid'])) {
     log_error(gettext("webConfigurator configuration has changed. Restarting webConfigurator."));
     send_event("service restart webgui");
 }
